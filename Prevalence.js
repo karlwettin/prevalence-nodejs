@@ -52,7 +52,7 @@ function Prevalence(io, initialState) {
    * @return {*}
    */
   this.query = function query(query, queryEvaluatedClosure) {
-    return self.io.executeReadLocked(function () {
+    return self.io.executeReadLocked(function readLocked() {
       var results = query.execute(self.root);
       queryEvaluatedClosure(results);
     });
@@ -67,7 +67,7 @@ function Prevalence(io, initialState) {
 
 
   this.open = function open(openedClosure) {
-    self.io.open(function () {
+    self.io.open(function opened() {
       self.io.readSnapshot(
         initialState,
         0,
@@ -151,7 +151,7 @@ function FileSystemIO(serializer, directory) {
       var json = JSON.stringify({transaction: { execute: execute, fields: fields}, executionTime: executionTime});
       console.log("Adding new transaction to journal. " + json);
 
-      require('fs').appendFile(self.journalFile, new Buffer(json + "\n", "utf8"), function () {
+      require('fs').appendFile(self.journalFile, new Buffer(json + "\n", "utf8"), function appended() {
         transactionAppendedClosure(executionTime);
       });
 
@@ -191,7 +191,7 @@ function FileSystemIO(serializer, directory) {
 
     self.serializer.serialize(root, function serialized(snapshot) {
 
-      require('fs').writeFile(snapshotFilePath, snapshot, "utf8", function () {
+      require('fs').writeFile(snapshotFilePath, snapshot, "utf8", function written() {
         if (self.journalFile !== null && self.journalFile !== 'undefined') {
           self.journalFile.end();
           self.journalFile = null;
@@ -253,7 +253,7 @@ function FileSystemIO(serializer, directory) {
       readStream.on('data', function (data) {
         dataRead += data;
       });
-      readStream.on('end', function () {
+      readStream.on('end', function end() {
 
         console.log("Read snapshot file " + snapshot.fileName);
 
@@ -361,11 +361,11 @@ function FileSystemIO(serializer, directory) {
           readJournalEntries();
         });
 
-        stream.on('error', function () {
+        stream.on('error', function error() {
           throw "Error while reading journal stream!";
         });
 
-        stream.on('end', function () {
+        stream.on('end', function end() {
           readJournalEntries();
           console.log("End of transaction journal " + journal.fileName);
 
