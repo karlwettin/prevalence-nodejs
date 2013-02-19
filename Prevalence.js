@@ -46,9 +46,15 @@ function Prevalence(io, initialState) {
     });
   };
 
-  this.query = function query(query) {
+  /**
+   * @param query
+   * @param queryEvaluatedClosure function(query results)
+   * @return {*}
+   */
+  this.query = function query(query, queryEvaluatedClosure) {
     return self.io.executeReadLocked(function () {
-      return query.execute(self.root);
+      var results = query.execute(self.root);
+      queryEvaluatedClosure(results);
     });
   };
 
@@ -90,7 +96,6 @@ function Prevalence(io, initialState) {
 }
 
 
-
 function FileSystemIO(serializer, directory) {
 
   var self = this;
@@ -111,10 +116,21 @@ function FileSystemIO(serializer, directory) {
   };
 
 
+  /**
+   * Executes closure while making sure nothing is reading (query) or writing (execute) to the prevalence base.
+   * @param closure
+   * @return {*}
+   */
   this.executeWriteLocked = function executeWriteLocked(closure) {
     return closure();
   };
 
+
+  /**
+   * Executes closure while making sure nothing is writing (execute) to the prevalence base at the same time.
+   * @param closure
+   * @return {*}
+   */
   this.executeReadLocked = function executeReadLocked(closure) {
     return closure();
   };
@@ -162,19 +178,23 @@ function FileSystemIO(serializer, directory) {
    * @param snapshotWrittenClosure function(executionDate)
    */
   this.takeSnapshot = function takeSnapshot(root, snapshotWrittenClosure) {
-    var self = this;
     var executionTime = this.getTime();
-    var snapshot = require('./json-ref.js').ref(root);
     var snapshotFileName = executionTime + ".snapshot";
-    require('fs').writeFile(directory + "/" + snapshotFileName, JSON.stringify(snapshot), "utf8", function () {
-      if (self.journalFile !== null && self.journalFile !== 'undefined') {
-        self.journalFile.end();
-        self.journalFile = null;
-      }
-      self.snapshotTimeStamp = executionTime;
-      snapshotWrittenClosure(executionTime);
-    });
+    var snapshotFilePath = directory + "/" + snapshotFileName;
 
+    self.serializer.writeSnapshot(root, function serialized(snapshot) {
+
+      require('fs').writeFile(snapshotFilePath, snapshot, "utf8", function () {
+        if (self.journalFile !== null && self.journalFile !== 'undefined') {
+          self.journalFile.end();
+          self.journalFile = null;
+        }
+        self.snapshotTimeStamp = executionTime;
+        snapshotWrittenClosure(executionTime);
+      });
+
+
+    });
   };
 
   this.readSnapshot = function readSnapshot(initialState, sinceExecutionTime, snapshotReadClosure) {
@@ -329,7 +349,7 @@ function FileSystemIO(serializer, directory) {
           readJournalEntries();
           console.log("End of transaction journal " + journal.fileName);
 
-          if (journalsIndex < journals.length -1) {
+          if (journalsIndex < journals.length - 1) {
             readNextJournal(journals, ++journalsIndex);
           } else {
             console.log(transactionCounter + " transactions executed.");
@@ -359,14 +379,12 @@ function FileSystemIO(serializer, directory) {
 function JsonRefSerializer() {
   /**
    *
-   * @param object
-   * @param writeStream
+   * @param root
    * @param serializedClosure function()
    */
-  this.writeSnapshot = function writeSnapshot(object, writeStream, serializedClosure) {
-    var serializedObject = JSON.stringify(require('./json-ref.js').ref(object));
-    writeStream.write(new Buffer(serializedObject, "utf8"));
-    serializedClosure();
+  this.writeSnapshot = function writeSnapshot(root, serializedClosure) {
+    var snapshot = JSON.stringify(require('./json-ref.js').ref(root));
+    serializedClosure(snapshot);
   };
 
   /**
