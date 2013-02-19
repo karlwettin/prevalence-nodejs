@@ -36,7 +36,7 @@ function Prevalence(io, initialState) {
 
     // create new deep clone
     // to make sure the transaction is executed the same way as when loaded from journal
-    transaction = { execute: eval("f=" + transaction.execute + ";"), fields: transaction.fields === null || typeof transaction.fields === 'undefined' ? null : JSON.parse(JSON.stringify(transaction.fields))};
+    transaction = { execute: eval("f=" + transaction.execute + ";"), fields: transaction.fields === null || typeof transaction.fields === 'undefined' ? null : self.io.serializer.clone(transaction.fields)};
 
     return self.io.executeWriteLocked(function execute() {
       self.io.addTransactionToJournal(transaction, function transactionAppendedClosure(executionTime) {
