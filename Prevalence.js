@@ -182,7 +182,7 @@ function FileSystemIO(serializer, directory) {
     var snapshotFileName = executionTime + ".snapshot";
     var snapshotFilePath = directory + "/" + snapshotFileName;
 
-    self.serializer.writeSnapshot(root, function serialized(snapshot) {
+    self.serializer.serialize(root, function serialized(snapshot) {
 
       require('fs').writeFile(snapshotFilePath, snapshot, "utf8", function () {
         if (self.journalFile !== null && self.journalFile !== 'undefined') {
@@ -207,7 +207,7 @@ function FileSystemIO(serializer, directory) {
       var fileName = fileNames[i];
       // todo regexp "^([0-9]+).snapshot"
       if (endsWith(fileName, ".snapshot")) {
-        console.log("Detected snapshot file " + fileName);
+        console.log("Found snapshot file " + fileName);
         var startExecutionTime = parseInt(fileName.substring(0, fileName.indexOf(".snapshot")));
         if (startExecutionTime >= sinceExecutionTime) {
           snapshots.push({startExecutionTime: startExecutionTime, fileName: fileName, filePath: directory + "/" + fileName});
@@ -225,7 +225,7 @@ function FileSystemIO(serializer, directory) {
 
       self.snapshotTimeStamp = 0;
 
-      var initialStateClone = self.serializer.cloneInitialState(initialState);
+      var initialStateClone = self.serializer.clone(initialState);
       snapshotReadClosure(initialStateClone);
 
 
@@ -242,12 +242,21 @@ function FileSystemIO(serializer, directory) {
         bufferSize: 64 * 1024
       });
 
-      self.serializer.readSnapshot(readStream, function (root) {
-        self.snapshotTimeStamp = snapshot.startExecutionTime;
-        console.log("Read snapshot file " + snapshot.fileName);
-        snapshotReadClosure(root);
+      var dataRead = '';
+      readStream.on('data', function (data) {
+        dataRead += data;
       });
+      readStream.on('end', function () {
 
+        console.log("Read snapshot file " + snapshot.fileName);
+
+        self.serializer.deserialize(dataRead, function (root) {
+          self.snapshotTimeStamp = snapshot.startExecutionTime;
+          snapshotReadClosure(root);
+        });
+
+
+      });
 
     }
 
@@ -380,30 +389,23 @@ function JsonRefSerializer() {
   /**
    *
    * @param root
-   * @param serializedClosure function()
+   * @param serializedClosure function(serialized)
    */
-  this.writeSnapshot = function writeSnapshot(root, serializedClosure) {
-    var snapshot = JSON.stringify(require('./json-ref.js').ref(root));
-    serializedClosure(snapshot);
+  this.serialize = function serialize(root, serializedClosure) {
+    var serialized = JSON.stringify(require('./json-ref.js').ref(root));
+    serializedClosure(serialized);
   };
 
   /**
-   *
-   * @param readStream
+   * @param data
    * @param deserializedClosure function(deserializedObject)
    */
-  this.readSnapshot = function readSnapshot(readStream, deserializedClosure) {
-    var dataRead = '';
-    readStream.on('data', function (data) {
-      dataRead += data;
-    });
-    readStream.on('end', function () {
-      var deserializedObject = require('./json-ref.js').deref(JSON.parse(dataRead));
-      deserializedClosure(deserializedObject);
-    });
+  this.deserialize = function deserialize(data, deserializedClosure) {
+    var deserializedObject = require('./json-ref.js').deref(JSON.parse(data));
+    deserializedClosure(deserializedObject);
   };
 
-  this.cloneInitialState = function cloneInitialState(initialState) {
+  this.clone = function clone(initialState) {
     var serializedObject = JSON.stringify(require('./json-ref.js').ref(initialState));
     var deserializedObject = require('./json-ref.js').deref(JSON.parse(serializedObject));
     return deserializedObject;
