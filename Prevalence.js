@@ -122,6 +122,7 @@ function FileSystemIO(serializer, directory) {
    * @return {*}
    */
   this.executeWriteLocked = function executeWriteLocked(closure) {
+    // todo, although it might not make sense unless more than one instance of node works against the same files.
     return closure();
   };
 
@@ -132,6 +133,7 @@ function FileSystemIO(serializer, directory) {
    * @return {*}
    */
   this.executeReadLocked = function executeReadLocked(closure) {
+    // todo, although it might not make sense unless more than one instance of node works against the same files.
     return closure();
   };
 
@@ -144,12 +146,17 @@ function FileSystemIO(serializer, directory) {
       execute = execute.substring("function (".length);
       execute = "function execute(" + execute;
     }
-    var json = JSON.stringify({transaction: { execute: execute, fields: transaction.fields}, executionTime: executionTime});
-    console.log("Adding new transaction to journal. " + json);
 
-    require('fs').appendFile(self.journalFile, new Buffer(json + "\n", "utf8"), function () {
-      transactionAppendedClosure(executionTime);
+    self.serializer.serialize(transaction.fields, function(fields) {
+      var json = JSON.stringify({transaction: { execute: execute, fields: fields}, executionTime: executionTime});
+      console.log("Adding new transaction to journal. " + json);
+
+      require('fs').appendFile(self.journalFile, new Buffer(json + "\n", "utf8"), function () {
+        transactionAppendedClosure(executionTime);
+      });
+
     });
+
 
 
   };
@@ -337,7 +344,11 @@ function FileSystemIO(serializer, directory) {
               if (line.trim() !== "") {
                 var entry = JSON.parse(line);
                 var execute = eval("f=" + entry.transaction.execute + ";");
-                var transaction = {execute: execute, fields: entry.transaction.fields};
+
+                // todo async!!
+                var fields = self.serializer.deserializeSync(entry.transaction.fields);
+
+                var transaction = {execute: execute, fields: fields};
                 transactionClosure(transaction, entry.executionTime);
                 transactionCounter++;
               }
@@ -385,16 +396,22 @@ function FileSystemIO(serializer, directory) {
 }
 
 
+
 function JsonRefSerializer() {
+
   /**
-   *
-   * @param root
+   * @param object
    * @param serializedClosure function(serialized)
    */
-  this.serialize = function serialize(root, serializedClosure) {
-    var serialized = JSON.stringify(require('./json-ref.js').ref(root));
+  this.serialize = function serialize(object, serializedClosure) {
+    var serialized = JSON.stringify(require('./json-ref.js').ref(object));
     serializedClosure(serialized);
   };
+
+  this.serializeSync = function serializeSync(object) {
+    return JSON.stringify(require('./json-ref.js').ref(object));
+  };
+
 
   /**
    * @param data
@@ -403,6 +420,10 @@ function JsonRefSerializer() {
   this.deserialize = function deserialize(data, deserializedClosure) {
     var deserializedObject = require('./json-ref.js').deref(JSON.parse(data));
     deserializedClosure(deserializedObject);
+  };
+
+  this.deserializeSync = function deserializeSync(data) {
+    return require('./json-ref.js').deref(JSON.parse(data));
   };
 
   this.clone = function clone(initialState) {
