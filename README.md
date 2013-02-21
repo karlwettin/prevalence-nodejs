@@ -16,10 +16,12 @@ Javascript and save it as json-ref.js in the same directory as
 Prevalene.js. I've emailed the author and asked for permission to
 merge the code with function JsonRefSerializer.
 
+```
 sudo apt-get install coffeescript
 git clone https://github.com/jdknezek/json-ref.git
 coffee -c json-ref/lib/json-ref.coffee
 cp json-ref/lib/json-ref.js $PREVALANCE_HOME
+```
 
 Caveats
 =======
