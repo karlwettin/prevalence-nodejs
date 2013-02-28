@@ -6,22 +6,11 @@ System prevalence (<http://en.wikipedia.org/wiki/System_Prevalence>) for Node.js
 This is version 0.1-SNAPSHOT and is the first thing I've ever written
 for Node.js so be aware, most probably here be dragons!
 
-Requirements
-============
+Acknowledgements
+================
 
-The serializer use JSON-REF which allows for circular references, but
-due to missing license information in the implementation I've found
-you'll have to compile <https://github.com/jdknezek/json-ref> to
-Javascript and save it as json-ref.js in the same directory as
-Prevalene.js. I've emailed the author and asked for permission to
-merge the code with function JsonRefSerializer.
-
-```
-sudo apt-get install coffeescript
-git clone https://github.com/jdknezek/json-ref.git
-coffee -c json-ref/lib/json-ref.coffee
-cp json-ref/lib/json-ref.js $PREVALANCE_HOME
-```
+The serializer use code from <https://github.com/jdknezek/json-ref> with
+authorization of its author Jonathan D. Knezek.
 
 Caveats
 =======
