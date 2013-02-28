@@ -9,8 +9,7 @@ for Node.js so be aware, most probably here be dragons!
 Acknowledgements
 ================
 
-The serializer use code from <https://github.com/jdknezek/json-ref> with
-authorization of its author Jonathan D. Knezek.
+The serializer use code from <https://github.com/jdknezek/json-ref> by Jonathan D. Knezek.
 
 Caveats
 =======
